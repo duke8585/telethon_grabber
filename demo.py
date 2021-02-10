@@ -159,12 +159,6 @@ def get_channel_messages(client, channel):
 
     return rows
 
-def has_attr(object, attr):
-    if has_attr(object, attr):
-        return True
-    else:
-        return False
-
 if __name__ == '__main__':
     get_config()
     client = create_client()
