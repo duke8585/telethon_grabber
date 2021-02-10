@@ -1,5 +1,5 @@
 .DS_Store
 .idea*
-*.session
+*.session*
 config.ini
 df.pickle

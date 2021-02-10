@@ -1,5 +1,6 @@
 import json
 import pandas as pd
+import telethon
 
 # TODO
 #
@@ -120,7 +121,6 @@ def get_chats(client):
 
 def get_channel_messages(client, channel):
     from telethon.tl.functions.messages import (GetHistoryRequest)
-    import telethon
 
     offset_id = 0
     limit = 1000 # messages per run
@@ -164,36 +164,25 @@ if __name__ == '__main__':
     client = create_client()
     my_chats = get_chats(client)
 
-    #print(list(dir(chats[0]))) # chat object dir
-
     allowed = ['CryptoMoon', 'Facemelters Spotlight', '🍤 Shrimp Tank 🍤', 'BabyWhaleX']
-    chats = [chat for chat in my_chats if chat.title in allowed]
+    chats = [chat for chat in my_chats if chat.title in allowed and hasattr(chat, 'megagroup')]
+    # megagroup for skipping ann channels with the same name
     print('chat.titles: ', [chat.title for chat in chats])
 
-    #channel = get_channel(client) # for public ones
-
+    df_list = []
     for chat in chats:
-        print('>>> starting: ', chat.title)
+        print('>>> starting: ', chat.title) #, type(chat), dir(chat), chat)
 
         rows = get_channel_messages(client, chat)
-        #print('\n'.join([str(r) for r in rows]))
-
         df = pd.DataFrame(rows, columns=['user_id', 'date', 'message'])
-
         title = chat.title.replace('🍤', '').strip().replace(' ', '_')
         print(title)
-
         df.loc[:, 'source'] = title
         print(df.shape, df.head(5))
+        df_list.append(df)
 
-        df.to_pickle(f'df.pickle')
-
-    # get channel ids
-    #print([(chat.title, chat.id, lambda c: c.date() if has_attr(c, 'date') else 0) for chat in chats])
-
-    # get participants
-    #all_participants = client.get_participants(chats[0], aggressive=True)
-    #print(all_participants)
+    main_df = pd.concat(df_list)
+    main_df.to_pickle(f'df.pickle')
 
 
 
