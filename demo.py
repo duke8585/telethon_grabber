@@ -126,7 +126,7 @@ def get_channel_messages(client, channel):
     limit = 1000 # messages per run
     all_messages = []
     total_messages = 0
-    total_count_limit = 5000 # total limit
+    total_count_limit = 2000 # total limit
 
     rows = []
 

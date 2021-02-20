@@ -3,3 +3,4 @@
 *.session*
 config.ini
 df.pickle
+/.ipynb_checkpoints/*
