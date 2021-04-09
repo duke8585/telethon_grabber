@@ -1,14 +1,14 @@
-import json
+from datetime import datetime
+import argparse
 import pandas as pd
 import telethon
+#import json
+#import sys
 
-# TODO
-#
-#
-# resources
-# https://tl.telethon.dev/methods/index.html
-# https://medium.com/better-programming/how-to-get-data-from-telegram-82af55268a4b
-
+parser = parser = argparse.ArgumentParser(description='grab messages, timestamps and user_ids from telegram groups')
+parser.add_argument('lower_date', metavar='d', type=str, action='store', default='2021-03-01', help='lower date limit, string, e.g. 2021-03-01')
+args = parser.parse_args()
+DATE_LIMIT_LOW = datetime.strptime(vars(args).get('lower_date'), '%Y-%m-%d')
 
 def get_config():
     """read config from file, see https://my.telegram.org/apps"""
@@ -94,9 +94,30 @@ def get_channel_users(client, channel):
 
     print(all_participants)
 
+def process_messages(messages):
+    all_messages = []
+    data_rows = []
+    for message in messages:
+        # print(message, type(message))
+        if isinstance(message, telethon.types.Message):
+            # handling in case of MessageService occurrences (rare)
+            all_messages.append(message.to_dict())
+            data_row = extract_from_json(message.to_dict())
+            data_rows.append(data_row)
+            record_timestamp = data_row[1]  # date is element 2
+            print(record_timestamp, limit_reached(record_timestamp))
+            if limit_reached(record_timestamp):
+                break
+    return len(all_messages), data_rows
+
 def extract_from_json(message):
-    # print(message)
+    """return tuple of user_id, date and message"""
     return (message['from_id']['user_id'], message['date'], message['message'])
+
+def limit_reached(date_string):
+    """compare date of record to breakup constant, TRUE when lower than LOW_LIMIT"""
+    # record_dt = datetime.strptime(date_string, '%Y-%m-%d %H:%M:%S+00:00')
+    return date_string.replace(tzinfo=None) < DATE_LIMIT_LOW
 
 def get_chats(client):
     """get groups from my account"""
@@ -123,15 +144,15 @@ def get_channel_messages(client, channel):
     from telethon.tl.functions.messages import (GetHistoryRequest)
 
     offset_id = 0
-    limit = 1000 # messages per run
+    limit = 2000 # messages per run
     all_messages = []
     total_messages = 0
-    total_count_limit = 2000 # total limit
+    total_count_limit = 10000 # total limit
 
-    rows = []
+    data_rows = []
 
     while True:
-        print("Current Offset ID is:", offset_id, "; Total Messages:", total_messages)
+        print("--- Current Offset ID is:", offset_id, "; Total Messages:", total_messages)
         history = client(GetHistoryRequest(
             peer=channel,
             offset_id=offset_id,
@@ -145,19 +166,30 @@ def get_channel_messages(client, channel):
         if not history.messages:
             break
         messages = history.messages
+
         for message in messages:
-            #print(message, type(message))
+            # print(message, type(message))
             if isinstance(message, telethon.types.Message):
-                # handling in case of MessageService occurences (rare)
+                # handling in case of MessageService occurrences (rare)
                 all_messages.append(message.to_dict())
                 data_row = extract_from_json(message.to_dict())
-                rows.append(data_row)
+                record_timestamp = data_row[1]
+                data_rows.append(data_row)
         offset_id = messages[len(messages) - 1].id
+
+        ## either terminate when lower date limit is reached or when total messages limit exceeded
+        record_timestamp = data_row[1]
+        # this is the last record processed in this batch,
+        # i.e. lowest date, date value is element 2
+        if limit_reached(record_timestamp):
+            print(f'>>> stopping at {record_timestamp}')
+            break
         total_messages = len(all_messages)
         if total_count_limit != 0 and total_messages >= total_count_limit:
+            print(f'>>> stopping after {total_messages} records')
             break
 
-    return rows
+    return data_rows
 
 if __name__ == '__main__':
     get_config()
@@ -166,7 +198,7 @@ if __name__ == '__main__':
 
     allowed = ['CryptoMoon', 'Facemelters Spotlight', '🍤 Shrimp Tank 🍤', 'BabyWhaleX']
     chats = [chat for chat in my_chats if chat.title in allowed and hasattr(chat, 'megagroup')]
-    # megagroup for skipping ann channels with the same name
+    # megagroup for skipping announcement channels with the same name
     print('chat.titles: ', [chat.title for chat in chats])
 
     df_list = []
@@ -175,15 +207,12 @@ if __name__ == '__main__':
 
         rows = get_channel_messages(client, chat)
         df = pd.DataFrame(rows, columns=['user_id', 'date', 'message'])
-        title = chat.title.replace('🍤', '').strip().replace(' ', '_')
-        print(title)
+        title = chat.title.replace('🍤', '').strip().replace(' ', '_') # remove special characters
         df.loc[:, 'source'] = title
-        print(df.shape, df.head(5))
+        print(f'''>>>  df rows: {df.shape[0]}, min date: {df.date.min().date()}, max date: {df.date.max().date()}, df sample:\n''',
+              df.sample(2))
+        print('>>> finished: ', chat.title)
         df_list.append(df)
 
     main_df = pd.concat(df_list)
     main_df.to_pickle(f'df.pickle')
-
-
-
-
