@@ -2,7 +2,8 @@
 a script to obtain group messages from telegram and store them in a dataframe for later analysis
 
 ## how to use
-* have config.ini ready, see .example
+* create a venv `python3 -m venv .venv` and install requirements `pip install -r requirements.pop`
+* have config.ini ready, see _config.ini.example_
 * supply the script a lower date in YYYY-MM-DD format
 * run it
 ```bash

@@ -3,4 +3,6 @@
 *.session*
 config.ini
 df.pickle
-/.ipynb_checkpoints/*
+.ipynb_checkpoints
+.venv*
+.vscode*
